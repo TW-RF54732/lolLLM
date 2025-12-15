@@ -14,3 +14,16 @@ llm:
       type: openai
       model_name: gpt-4o-mini
       api_key: ${OPENAI_API_KEY}
+      
+embedding:
+  active: local
+
+  profiles:
+    local:
+      type: local_st
+      model_name: sentence-transformers/all-MiniLM-L6-v2
+
+    openai:
+      type: openai
+      model_name: text-embedding-3-small
+      api_key: ${OPENAI_API_KEY}

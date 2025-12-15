@@ -1,21 +1,44 @@
-# from core.conversation.session import ConversationSession
-# from core.llm.providers.llama import LlamaCppProvider
+from core.rag.embedding.providers.local_st import LocalSTEmbeddingProvider
+from core.rag.retriever.simple import SimpleRetriever
+from core.conversation.session import ConversationSession
+from core.rag.context.simple import SimpleRAGContextAugmentor
+from core.llm.engine import LLMEngine
+from core.llm.providers.llama import LlamaCppProvider
+provider = LocalSTEmbeddingProvider()
 
-# session = ConversationSession("You are a helpful assistant.")
-# session.user("你好")
+docs = [
+    "這個專案是一個結合 LLM、TTS 與 Whisper 的聊天機器人",
+    "Phase 0 建立 LLM 抽象層",
+    "Phase 1 支援多模型切換",
+]
 
-# llm = LlamaCppProvider("./llm/LLM_models/L3-8B-Stheno-v3.2-Q5_K_S.gguf")
-# reply = llm.chat(session.messages)
+doc_embeddings = provider.embed(docs)
 
-# session.assistant(reply)
+query = "這個系統的目標是什麼？"
+query_embedding = provider.embed([query])[0]
 
-# print(session.messages)
+retriever = SimpleRetriever(doc_embeddings, docs)
+hits = retriever.retrieve(query_embedding)
 
-class testClass:
-    def __init__(self):
-        self.a = 0
-        self.b = 1
-        self.c = 2
+# print(hits)
 
-at = testClass(a = 1,b = 2,c= 3)
-print(at.a)
+session = ConversationSession(
+    "你是一個技術助理，回答需精確"
+)
+
+session.user("這個專案的目標是什麼？")
+
+augmentor = SimpleRAGContextAugmentor(
+    retriever=retriever,
+    embedding_provider=provider
+)
+
+llm_provider = LlamaCppProvider(
+    model_path="core/llm/models/L3-8B-Stheno-v3.2-Q5_K_S.gguf",
+    n_ctx=4096,
+    n_threads=8,
+)
+engine = LLMEngine(llm_provider)
+reply = engine.chat_with_rag(session, augmentor)
+
+print(reply)
