@@ -1,19 +1,16 @@
-from core.llm.factory import create_provider
+from core.llm.contract.result import TextResult
 
 class LLMEngine:
 
     def __init__(self, provider):
         self.provider = provider
 
-    def chat(self, messages):
-        return self.provider.chat(messages)
+    def chat(self, session) -> TextResult:
+        result = self.provider.generate(session.get_messages())
 
-    def chat_with_rag(self, session, augmentor):
-        user_query = session.messages[-1]["content"]
+        # 基礎對話階段，只接受 TextResult
+        if isinstance(result, TextResult):
+            session.assistant(result.content)
+            return result
 
-        augmented = augmentor.augment(
-            messages=session.messages,
-            query=user_query
-        )
-
-        return self.provider.chat(augmented)
+        raise RuntimeError("Unexpected LLMResult type in base chat mode")

@@ -1,11 +1,26 @@
+from core.llm.contract.message import Message
+
 class ConversationSession:
-    def __init__(self, system_prompt: str):
-        self.messages = [
-            {"role": "system", "content": system_prompt}
-        ]
+    def __init__(self, system_prompt: str | None = None):
+        self.messages: list[Message] = []
 
-    def user(self, text: str):
-        self.messages.append({"role": "user", "content": text})
+        if system_prompt:
+            self.messages.append({
+                "role": "system",
+                "content": system_prompt
+            })
 
-    def assistant(self, text: str):
-        self.messages.append({"role": "assistant", "content": text})
+    def user(self, content: str) -> None:
+        self.messages.append({
+            "role": "user",
+            "content": content
+        })
+
+    def assistant(self, content: str) -> None:
+        self.messages.append({
+            "role": "assistant",
+            "content": content
+        })
+
+    def get_messages(self) -> list[Message]:
+        return self.messages

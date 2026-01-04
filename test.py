@@ -4,6 +4,7 @@ from core.conversation.session import ConversationSession
 from core.rag.context.simple import SimpleRAGContextAugmentor
 from core.llm.engine import LLMEngine
 from core.llm.providers.llama import LlamaCppProvider
+from core.rag.embedding.providers.local_st import EmbeddingProvider
 provider = LocalSTEmbeddingProvider()
 
 docs = [
@@ -42,3 +43,10 @@ engine = LLMEngine(llm_provider)
 reply = engine.chat_with_rag(session, augmentor)
 
 print(reply)
+embed_provider = EmbeddingProvider()
+augmentor = SimpleRAGContextAugmentor(
+    retriever=retriever,
+    embedding_provider=embed_provider
+)
+
+reply = engine.run_with_rag(session, augmentor)
