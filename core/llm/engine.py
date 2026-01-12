@@ -1,8 +1,9 @@
+# core\llm\engine.py
 from core.llm.contract.result import TextResult
+from core.llm.contract.provider import BaseLLMProvider
 
 class LLMEngine:
-
-    def __init__(self, provider):
+    def __init__(self, provider:BaseLLMProvider):
         self.provider = provider
 
     def chat(self, session) -> TextResult:

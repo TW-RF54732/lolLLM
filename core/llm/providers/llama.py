@@ -6,14 +6,22 @@ from core.llm.contract.result import TextResult
 
 class LlamaCppProvider(BaseLLMProvider):
 
-    def __init__(self, model_path: str, n_ctx=4096, n_threads=8):
+    def __init__(
+        self,
+        model_path: str,
+        n_ctx=4096,
+        n_threads=8,
+        n_batch=512,
+    ):
         self.llm = Llama(
             model_path=model_path,
             n_ctx=n_ctx,
             n_threads=n_threads,
+            n_batch=n_batch,
         )
 
-    def generate(self, messages: list[Message]):
+
+    def generate(self, messages: list[Message]) -> TextResult:
         prompt = self._to_prompt(messages)
 
         output = self.llm(
