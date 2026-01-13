@@ -1,3 +1,4 @@
+#core\conversation\session.py
 from core.llm.contract.message import Message
 
 class ConversationSession:

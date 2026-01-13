@@ -2,7 +2,7 @@
 from llama_cpp import Llama
 from core.llm.contract.provider import BaseLLMProvider
 from core.llm.contract.message import Message
-from core.llm.contract.result import TextResult
+from core.llm.contract.result import TextResult,BaseResult
 
 class LlamaCppProvider(BaseLLMProvider):
 
@@ -21,7 +21,7 @@ class LlamaCppProvider(BaseLLMProvider):
         )
 
 
-    def generate(self, messages: list[Message]) -> TextResult:
+    def generate(self, messages: list[Message]) -> BaseResult:
         prompt = self._to_prompt(messages)
 
         output = self.llm(
