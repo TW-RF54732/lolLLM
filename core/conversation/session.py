@@ -25,3 +25,7 @@ class ConversationSession:
 
     def get_messages(self) -> list[Message]:
         return self.messages
+    
+    def last(self) -> Message | None:
+        return self.messages[-1] if self.messages else None
+

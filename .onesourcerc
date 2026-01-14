@@ -1,0 +1,6 @@
+{
+    "output": "lolLLM_struct.txt",
+    "ext": ".py",
+    "exclude": null,
+    "max_size": 500
+}

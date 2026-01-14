@@ -1,0 +1,360 @@
+<project_structure>
+copySoul/
+|-- core
+|   |-- conversation
+|   |   |-- __pycache__
+|   |   \-- session.py
+|   |-- llm
+|   |   |-- LLM_models
+|   |   |-- __pycache__
+|   |   |-- contract
+|   |   |   |-- __pycache__
+|   |   |   |-- function.py
+|   |   |   |-- message.py
+|   |   |   |-- provider.py
+|   |   |   \-- result.py
+|   |   |-- providers
+|   |   |   |-- __pycache__
+|   |   |   \-- llama.py
+|   |   |-- engine.py
+|   |   \-- factory.py
+|   |-- plugins
+|   |   \-- rag
+|   |       |-- context
+|   |       |-- contract
+|   |       |-- embedding
+|   |       |   |-- providers
+|   |       |   |   |-- __pycache__
+|   |       |   |   |-- local_st.py
+|   |       |   |   \-- openai.py
+|   |       |   |-- base.py
+|   |       |   |-- engine.py
+|   |       |   \-- factory.py
+|   |       |-- retriever
+|   |       |   \-- simple.py
+|   |       \-- utils
+|   |           \-- similarity.py
+|   \-- config.py
+\-- models
+</project_structure>
+
+<file path="core\config.py">
+# core/config.py
+from dataclasses import dataclass
+
+@dataclass
+class LLMProfile:
+    type: str
+    model_name: str
+    model_path: str | None = None
+    api_key: str | None = None
+    n_ctx: int = 4096
+    n_threads: int = 8
+    n_batch: int = 512
+
+
+</file>
+
+<file path="core\conversation\session.py">
+#core\conversation\session.py
+from core.llm.contract.message import Message
+
+class ConversationSession:
+    def __init__(self, system_prompt: str | None = None):
+        self.messages: list[Message] = []
+
+        if system_prompt:
+            self.messages.append({
+                "role": "system",
+                "content": system_prompt
+            })
+
+    def user(self, content: str) -> None:
+        self.messages.append({
+            "role": "user",
+            "content": content
+        })
+
+    def assistant(self, content: str) -> None:
+        self.messages.append({
+            "role": "assistant",
+            "content": content
+        })
+
+    def get_messages(self) -> list[Message]:
+        return self.messages
+    
+    def last(self) -> Message | None:
+        return self.messages[-1] if self.messages else None
+
+
+</file>
+
+<file path="core\llm\engine.py">
+# core\llm\engine.py
+from core.llm.contract.result import BaseResult,TextResult
+from core.llm.contract.provider import BaseLLMProvider
+
+class LLMEngine:
+    def __init__(self, provider: BaseLLMProvider):
+        self.provider = provider
+
+    def chat(self, session) -> BaseResult:
+        result = self.provider.generate(session.get_messages())
+
+        if isinstance(result, TextResult):
+            session.assistant(result.content)
+
+        return result
+</file>
+
+<file path="core\llm\factory.py">
+# core/llm/factory.py
+from core.llm.providers.llama import LlamaCppProvider
+from core.llm.providers.openai import OpenAIProvider
+
+def create_provider(profile):
+    if profile.type == "llama_cpp":
+        return LlamaCppProvider(
+            model_path=profile.model_path,
+            n_ctx=profile.n_ctx,
+            n_threads=profile.n_threads,
+            n_batch=profile.n_batch,
+        )
+
+    if profile.type == "openai":
+        return OpenAIProvider(
+            api_key=profile.api_key,
+            model_name=profile.model_name,
+        )
+
+    raise ValueError(f"Unknown provider type: {profile.type}")
+
+</file>
+
+<file path="core\llm\contract\function.py">
+# core/llm/contract/function.py
+from dataclasses import dataclass
+from typing import Any, Dict
+
+@dataclass
+class FunctionSpec:
+    name: str
+    description: str
+    parameters: Dict[str, Any]
+
+</file>
+
+<file path="core\llm\contract\message.py">
+# core/llm/contract/message.py
+from typing import Literal, TypedDict
+
+Role = Literal["system", "user", "assistant", "tool"]
+
+class Message(TypedDict):
+    role: Role
+    content: str
+
+</file>
+
+<file path="core\llm\contract\provider.py">
+# core/llm/contract/provider.py
+from abc import ABC, abstractmethod
+from .message import Message
+from .result import BaseResult
+
+class BaseLLMProvider(ABC):
+
+    @abstractmethod
+    def generate(
+        self,
+        messages: list[Message],
+        config=None,
+    ) -> BaseResult:
+        pass
+</file>
+
+<file path="core\llm\contract\result.py">
+# core/llm/contract/result.py
+from dataclasses import dataclass
+from typing import Union
+    
+class BaseResult:
+    """Marker base class for all LLM results."""
+    pass
+
+@dataclass
+class TextResult(BaseResult):
+    content: str
+
+@dataclass
+class FunctionCallResult(BaseResult):
+    name: str
+    arguments: dict
+
+LLMResult = BaseResult
+
+</file>
+
+<file path="core\llm\providers\llama.py">
+# core/llm/providers/llama.py
+from llama_cpp import Llama
+from core.llm.contract.provider import BaseLLMProvider
+from core.llm.contract.message import Message
+from core.llm.contract.result import TextResult,BaseResult
+
+class LlamaCppProvider(BaseLLMProvider):
+
+    def __init__(
+        self,
+        model_path: str,
+        n_ctx=4096,
+        n_threads=8,
+        n_batch=512,
+    ):
+        self.llm = Llama(
+            model_path=model_path,
+            n_ctx=n_ctx,
+            n_threads=n_threads,
+            n_batch=n_batch,
+        )
+
+
+    def generate(self, messages: list[Message]) -> BaseResult:
+        prompt = self._to_prompt(messages)
+
+        output = self.llm(
+            prompt,
+            max_tokens=512,
+            stop=["</s>"],
+        )
+
+        text = output["choices"][0]["text"]
+        return TextResult(content=text)
+
+    def _to_prompt(self, messages: list[Message]) -> str:
+        lines = []
+        for m in messages:
+            lines.append(f"{m['role']}: {m['content']}")
+        lines.append("assistant:")
+        return "\n".join(lines)
+
+</file>
+
+<file path="core\plugins\rag\embedding\base.py">
+from abc import ABC, abstractmethod
+
+class EmbeddingProvider(ABC):
+
+    @abstractmethod
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        """
+        Input: list of strings
+        Output: list of embedding vectors
+        """
+        pass
+
+</file>
+
+<file path="core\plugins\rag\embedding\engine.py">
+# core/rag/embedding/engine.py
+from core.rag.embedding.factory import create_embedding_provider
+
+class EmbeddingEngine:
+
+    def __init__(self, provider):
+        self.provider = provider
+
+    @classmethod
+    def from_profile(cls, profile):
+        return cls(create_embedding_provider(profile))
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        return self.provider.embed(texts)
+
+</file>
+
+<file path="core\plugins\rag\embedding\factory.py">
+# core/rag/embedding/factory.py
+from core.rag.embedding.providers.local_st import LocalSTEmbeddingProvider
+from core.rag.embedding.providers.openai import OpenAIEmbeddingProvider
+
+def create_embedding_provider(profile):
+    if profile.type == "local_st":
+        return LocalSTEmbeddingProvider(profile.model_name)
+
+    if profile.type == "openai":
+        return OpenAIEmbeddingProvider(
+            api_key=profile.api_key,
+            model=profile.model_name
+        )
+
+    raise ValueError(f"Unknown embedding provider: {profile.type}")
+
+</file>
+
+<file path="core\plugins\rag\embedding\providers\local_st.py">
+# core/rag/embedding/providers/local_st.py
+from sentence_transformers import SentenceTransformer
+from core.rag.embedding.base import EmbeddingProvider
+
+class LocalSTEmbeddingProvider(EmbeddingProvider):
+
+    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
+        self.model = SentenceTransformer(model_name)
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        vectors = self.model.encode(texts, normalize_embeddings=True)
+        return vectors.tolist()
+
+</file>
+
+<file path="core\plugins\rag\embedding\providers\openai.py">
+from openai import OpenAI
+from core.rag.embedding.base import EmbeddingProvider
+
+class OpenAIEmbeddingProvider(EmbeddingProvider):
+
+    def __init__(self, api_key: str, model: str = "text-embedding-3-small"):
+        self.client = OpenAI(api_key=api_key)
+        self.model = model
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        res = self.client.embeddings.create(
+            model=self.model,
+            input=texts
+        )
+        return [item.embedding for item in res.data]
+
+</file>
+
+<file path="core\plugins\rag\retriever\simple.py">
+# core/rag/retriever/simple.py
+class SimpleRetriever:
+
+    def __init__(self, embeddings, documents):
+        self.embeddings = embeddings
+        self.documents = documents
+
+    def retrieve(self, query_embedding, top_k=3):
+        scores = []
+        for emb, text in zip(self.embeddings, self.documents):
+            score = cosine_similarity(query_embedding, emb)
+            scores.append((score, text))
+
+        scores.sort(key=lambda x: x[0], reverse=True)
+        return scores[:top_k]
+
+</file>
+
+<file path="core\plugins\rag\utils\similarity.py">
+import math
+
+def cosine_similarity(a: list[float], b: list[float]) -> float:
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = math.sqrt(sum(x * x for x in a))
+    norm_b = math.sqrt(sum(y * y for y in b))
+    return dot / (norm_a * norm_b)
+
+</file>
+
