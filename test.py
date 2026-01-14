@@ -1,10 +1,10 @@
-from core.rag.embedding.providers.local_st import LocalSTEmbeddingProvider
-from core.rag.retriever.simple import SimpleRetriever
+from core.plugins.rag.embedding.providers.local_st import LocalSTEmbeddingProvider
+from core.plugins.rag.retriever.simple import SimpleRetriever
 from core.conversation.session import ConversationSession
-from core.rag.context.simple import SimpleRAGContextAugmentor
+from core.plugins.rag.context.simple import SimpleRAGContextAugmentor
 from core.llm.engine import LLMEngine
 from core.llm.providers.llama import LlamaCppProvider
-from core.rag.embedding.providers.local_st import EmbeddingProvider
+from core.plugins.rag.embedding.providers.local_st import EmbeddingProvider
 provider = LocalSTEmbeddingProvider()
 
 docs = [
